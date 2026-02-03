@@ -50,8 +50,7 @@ int sys_task_info(TaskInfo *ti)
 		ti->syscall_times[i] = p->ti->syscall_times[i];
 	}
 
-	uint64 current_cycle = get_cycle();
-	ti->time = (int)((current_cycle - p->ti->time) / (CPU_FREQ / 1000));
+	ti->time = (int)((get_cycle() - p->ti->time) / (CPU_FREQ / 1000));
 
     return 0;
 }
