@@ -38,10 +38,6 @@ void proc_init(void)
 		*/
 		p->ti = &task_info_pool[p - pool];
 		p->ti->status = UnInit;
-		memset(p->ti->syscall_times, 0, sizeof(p->ti->syscall_times));
-		p->ti->time = 0;
-		p->start_time = 0;
-
 	}
 	idle.kstack = (uint64)boot_stack_top;
 	idle.pid = 0;
@@ -92,10 +88,7 @@ void scheduler(void)
 				/*
 				* LAB1: you may need to init proc start time here
 				*/
-				if (p->start_time == 0)
-				{
-					p->start_time = get_cycle();
-				}
+				p->ti->time = 0;
 				p->ti->status = Running;
 
 				p->state = RUNNING;

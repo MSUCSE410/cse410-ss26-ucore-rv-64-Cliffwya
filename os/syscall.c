@@ -44,14 +44,14 @@ int sys_task_info(TaskInfo *ti)
 	struct proc *p = curr_proc();
 
 	ti->status = Running;
+	
 	for(int i = 0; i < MAX_SYSCALL_NUM; i++)
 	{
 		ti->syscall_times[i] = p->ti->syscall_times[i];
 	}
 
 	uint64 current_cycle = get_cycle();
-	uint64 elapsed_cycles = current_cycle - p->start_time;
-	ti->time = (int)(elapsed_cycles / (CPU_FREQ / 1000));
+	ti->time = (int)((current_cycle - p->ti->time) / (CPU_FREQ / 1000));
 
     return 0;
 }
