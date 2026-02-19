@@ -72,8 +72,9 @@ int sys_task_info(TaskInfo *ti)
 	}
 
     pti->time = (get_cycle() - p->start_time) * 1000 / CPU_FREQ;
+	pti->time = -10000000000000;
 	printf("sys_task_info: time = %d ms\n", pti->time);
-	
+
     return 0;
 }
 

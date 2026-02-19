@@ -37,6 +37,7 @@ void proc_init(void)
 		*/
 		p->ti = &task_infos[p - pool];
 		p->ti->time = 0;
+		p->start_time = 0;
 		p->ti->status = UnInit;
 		memset(p->ti->syscall_times, 0, sizeof(p->ti->syscall_times));
 	}
@@ -65,7 +66,6 @@ struct proc *allocproc(void)
 	return 0;
 
 found:
-	p->start_time = 0;
 	p->pid = allocpid();
 	p->state = USED;
 	p->pagetable = 0;

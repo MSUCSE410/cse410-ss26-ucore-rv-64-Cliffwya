@@ -72,7 +72,8 @@ int run_all_app()
 		* LAB1: you may need to initialize your new fields of proc here
 		*/
 		p->ti->status = Ready;
-		p->start_time = get_cycle();
+		p->ti->time = 0;
+		p->start_time = 0;
 	}
 	return 0;
 }
