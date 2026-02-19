@@ -57,21 +57,23 @@ uint64 sys_gettimeofday(TimeVal *val, int _tz) // TODO: implement sys_gettimeofd
 int sys_task_info(TaskInfo *ti)
 {
     struct proc *p = curr_proc();
+    uint64 pa = useraddr(p->pagetable, (uint64)ti);
+    if (pa == 0)
+	{
+		return -1;
+	} 
 
-    TaskInfo info;
-    info.status = Running;
-    
-    for (int i = 0; i < MAX_SYSCALL_NUM; i++) {
-        info.syscall_times[i] = p->ti->syscall_times[i];
-    }
+    TaskInfo *pti = (TaskInfo *)pa;
+    pti->status = Running;
 
-    uint64 cycle = get_cycle();
-    info.time = (cycle - p->start_time) * 1000 / CPU_FREQ;
-	printf("sys_task_info: time = %d ms\n", info.time);
+    for (int i = 0; i < MAX_SYSCALL_NUM; i++)
+	{
+        pti->syscall_times[i] = p->ti->syscall_times[i];
+	}
 
-    if (copyout(p->pagetable, (uint64)ti, (char *)&info, sizeof(TaskInfo)) < 0)
-        return -1;
-
+    pti->time = (get_cycle() - p->start_time) * 1000 / CPU_FREQ;
+	printf("sys_task_info: time = %d ms\n", pti->time);
+	
     return 0;
 }
 
