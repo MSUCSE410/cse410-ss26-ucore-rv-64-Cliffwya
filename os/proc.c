@@ -3,10 +3,12 @@
 #include "loader.h"
 #include "trap.h"
 #include "vm.h"
+#include "timer.h"
 
 struct proc pool[NPROC];
 __attribute__((aligned(16))) char kstack[NPROC][PAGE_SIZE];
 __attribute__((aligned(4096))) char trapframe[NPROC][TRAP_PAGE_SIZE];
+TaskInfo task_infos[NPROC];
 
 extern char boot_stack_top[];
 struct proc *current_proc;
@@ -33,6 +35,9 @@ void proc_init(void)
 		/*
 		* LAB1: you may need to initialize your new fields of proc here
 		*/
+		p->ti = &task_infos[p - pool];
+		p->ti->time = 0;
+		p->ti->status = UnInit;
 	}
 	idle.kstack = (uint64)boot_stack_top;
 	idle.pid = 0;
@@ -59,6 +64,7 @@ struct proc *allocproc(void)
 	return 0;
 
 found:
+	p->start_time = 0;
 	p->pid = allocpid();
 	p->state = USED;
 	p->pagetable = 0;
@@ -86,6 +92,11 @@ void scheduler(void)
 				/*
 				* LAB1: you may need to init proc start time here
 				*/
+				if (p->start_time == 0) {
+					p->start_time = get_cycle();
+				}
+				p->ti->status = Running;
+
 				p->state = RUNNING;
 				current_proc = p;
 				swtch(&idle.context, &p->context);
