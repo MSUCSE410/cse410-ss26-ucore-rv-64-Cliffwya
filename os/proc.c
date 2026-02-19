@@ -38,6 +38,7 @@ void proc_init(void)
 		p->ti = &task_infos[p - pool];
 		p->ti->time = 0;
 		p->ti->status = UnInit;
+		memset(p->ti->syscall_times, 0, sizeof(p->ti->syscall_times));
 	}
 	idle.kstack = (uint64)boot_stack_top;
 	idle.pid = 0;
@@ -94,6 +95,7 @@ void scheduler(void)
 				*/
 				if (p->start_time == 0) {
 					p->start_time = get_cycle();
+					printf("proc %d start_time set to %d\n", p->pid, p->start_time);
 				}
 				p->ti->status = Running;
 

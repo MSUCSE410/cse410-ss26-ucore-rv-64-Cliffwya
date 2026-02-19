@@ -56,19 +56,22 @@ uint64 sys_gettimeofday(TimeVal *val, int _tz) // TODO: implement sys_gettimeofd
 */
 int sys_task_info(TaskInfo *ti)
 {
-	struct proc *p = curr_proc();
-	uint64 pa = useraddr(p->pagetable,(uint64)ti);
-	TaskInfo *pti = (TaskInfo *)pa;
-	pti->status = Running;
+    struct proc *p = curr_proc();
 
-	for(int i = 0; i < MAX_SYSCALL_NUM; i++)
-	{
-		pti->syscall_times[i] = p->ti->syscall_times[i];
-	}
+    TaskInfo info;
+    info.status = Running;
+    
+    for (int i = 0; i < MAX_SYSCALL_NUM; i++) {
+        info.syscall_times[i] = p->ti->syscall_times[i];
+    }
 
-	uint64 cycle = get_cycle();
-	pti->time = (cycle - p->start_time) * 1000 / CPU_FREQ;
-	printf("%d\n", pti->time);
+    uint64 cycle = get_cycle();
+    info.time = (cycle - p->start_time) * 1000 / CPU_FREQ;
+	printf("sys_task_info: time = %d ms\n", info.time);
+
+    if (copyout(p->pagetable, (uint64)ti, (char *)&info, sizeof(TaskInfo)) < 0)
+        return -1;
+
     return 0;
 }
 
@@ -106,10 +109,12 @@ void syscall()
 	/*
 	* LAB1: you may need to add SYS_taskinfo case here
 	*/
+	case SYS_getpid:
+		ret = curr_proc()->pid;
+		break;
 	case SYS_task_info:
 		ret = sys_task_info((TaskInfo *)args[0]);
 		break;
-
 	default:
 		ret = -1;
 		errorf("unknown syscall %d", id);
