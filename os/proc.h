@@ -17,7 +17,7 @@ typedef enum {
 typedef struct {
 	TaskStatus status;
 	unsigned int syscall_times[MAX_SYSCALL_NUM];
-	uint64 time;
+	int time;
 } TaskInfo;
 
 // Saved registers for kernel context switches.
