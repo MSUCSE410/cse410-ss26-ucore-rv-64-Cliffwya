@@ -56,8 +56,6 @@ struct proc {
 	* LAB1: you may need to add some new fields here
 	*/
 	TaskInfo *ti;
-	uint64 start_time;
-
 };
 
 /*

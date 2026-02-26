@@ -71,9 +71,8 @@ int run_all_app()
 		/*
 		* LAB1: you may need to initialize your new fields of proc here
 		*/
-		p->ti->status = Ready;
-		p->ti->time = 0;
-		p->start_time = 0;
+		p->ti->status = Running;
+		p->ti->time = get_cycle() / (CPU_FREQ / 1000);
 	}
 	return 0;
 }

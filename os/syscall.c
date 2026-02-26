@@ -32,14 +32,18 @@ uint64 sys_sched_yield()
 	return 0;
 }
 
-uint64 sys_gettimeofday(TimeVal *val, int _tz) // TODO: implement sys_gettimeofday in pagetable. (VA to PA)
+uint64 sys_gettimeofday(uint64 val, int _tz) // TODO: implement sys_gettimeofday in pagetable. (VA to PA)
 {
 	// YOUR CODE
 	struct proc *p = curr_proc();
 
 	/* The code in `ch3` will leads to memory bugs*/
 
-	uint64 pa = useraddr(p->pagetable,(uint64)val);
+	uint64 pa = useraddr(p->pagetable,val);
+	if (pa == 0) 
+	{
+		return -1;
+	}
 	uint64 cycle = get_cycle();
 	TimeVal *pval = (TimeVal *)pa;
 	pval->sec = cycle / CPU_FREQ;
@@ -54,10 +58,16 @@ uint64 sys_gettimeofday(TimeVal *val, int _tz) // TODO: implement sys_gettimeofd
 /*
 * LAB1: you may need to define sys_task_info here
 */
-int sys_task_info(TaskInfo *ti)
+int sys_task_info(uint64 ti)
 {
     struct proc *p = curr_proc();
-    uint64 pa = useraddr(p->pagetable, (uint64)ti);
+
+	if (ti == 0)
+	{
+		return -1;
+	}
+
+    uint64 pa = useraddr(p->pagetable, ti);
     if (pa == 0)
 	{
 		return -1;
@@ -66,14 +76,12 @@ int sys_task_info(TaskInfo *ti)
     TaskInfo *pti = (TaskInfo *)pa;
     pti->status = Running;
 
+    pti->time = (get_cycle() / (CPU_FREQ / 1000)) - p->ti->time;
+
     for (int i = 0; i < MAX_SYSCALL_NUM; i++)
 	{
         pti->syscall_times[i] = p->ti->syscall_times[i];
 	}
-
-    pti->time = (get_cycle() - p->start_time) * 1000 / CPU_FREQ;
-	pti->time = -10000000000000;
-	printf("sys_task_info: time = %d ms\n", pti->time);
 
     return 0;
 }
@@ -107,7 +115,7 @@ void syscall()
 		ret = sys_sched_yield();
 		break;
 	case SYS_gettimeofday:
-		ret = sys_gettimeofday((TimeVal *)args[0], args[1]);
+		ret = sys_gettimeofday(args[0], args[1]);
 		break;
 	/*
 	* LAB1: you may need to add SYS_taskinfo case here
@@ -116,7 +124,7 @@ void syscall()
 		ret = curr_proc()->pid;
 		break;
 	case SYS_task_info:
-		ret = sys_task_info((TaskInfo *)args[0]);
+		ret = sys_task_info(args[0]);
 		break;
 	default:
 		ret = -1;
