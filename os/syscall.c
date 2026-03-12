@@ -55,6 +55,103 @@ uint64 sys_gettimeofday(uint64 val, int _tz) // TODO: implement sys_gettimeofday
 // TODO: add support for mmap and munmap syscall.
 // hint: read through docstrings in vm.c. Watching CH4 video may also help.
 // Note the return value and PTE flags (especially U,X,W,R)
+uint64 sys_mmap(uint64 start, uint64_t len, int port, int flag, int fd)
+{
+	/// Check if the allocated size is greater than 1GB, or the port is not page-aligned, or the port is 0, or the start address is page-aligned. If any of these conditions are true, return -1. If the length is 0, return 0.
+	/// Check if the port 0x7 is not set
+	/// Check if the port is not page-aligned
+	/// Check if the port is 0
+	/// Check if the start address is page-aligned
+	if(len > 1073741824 || (port & ~0x7) != 0 || (port & 0x7) == 0 || !PGALIGNED(start))
+	{
+		printf("Error: Invalid arguments\n");
+		return -1;
+	}
+	else if ( len == 0 )
+	{
+		return 0;
+	}
+
+	/// Variables for our for loop
+	/// Current Process
+	/// Rounded up length
+	/// Starting address as a uint64
+	struct proc *p = curr_proc();
+	uint64_t round = PGROUNDUP(len);
+	uint64_t start_addr = (uint64_t)start;
+
+	for (uint64_t i = start_addr; i < start_addr + round; i += PGSIZE)
+	{
+		pte_t *pte = walk(p->pagetable, i, 0);
+		if (pte == 0)
+		{
+			continue;
+		}
+		 else if (*pte & PTE_V)
+		{
+			printf("Error: Valid Bit is set\n");
+			return -1;
+		}
+	}
+
+	/// Check flags
+	int flags = PTE_U;
+	if (port & 0x1)
+	{
+		flags |= PTE_R;
+	}
+	if (port & 0x2)
+	{
+		flags |= PTE_W;
+	}
+	if (port & 0x4)
+	{
+		flags |= PTE_X;
+	}
+
+	/// Map the memory
+	for(uint64_t i = start_addr; i < start_addr + round; i += PGSIZE)
+	{
+		void *pa = kalloc();
+		if (pa == 0)
+		{
+			printf("Error: kalloc failed\n");
+			return -1;
+		}
+		if (mappages(p->pagetable, i, PGSIZE, (uint64)pa, flags) != 0)
+		{
+			printf("Error: mappages failed\n");
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
+uint64 sys_munmap(uint64 start, uint64 len)
+{
+	if(!PGALIGNED(start))
+	{
+		printf("Error: Invalid arguments\n");
+		return -1;
+	}
+	struct proc *p = curr_proc();
+	uint64 round = PGROUNDUP(len);
+
+	for(uint64_t i = start; i < (uint64_t)(start + round); i += PGSIZE)
+	{
+		pte_t *pte = walk(p->pagetable, i, 0);
+		if (!(*pte & PTE_V))
+		{
+			printf("Error: Invalid arguments\n");
+			return -1;
+		}
+	}
+
+	uvmunmap(p->pagetable, start, round/PGSIZE, 1);
+
+	return 0;
+}
 /*
 * LAB1: you may need to define sys_task_info here
 */
@@ -120,6 +217,12 @@ void syscall()
 	/*
 	* LAB1: you may need to add SYS_taskinfo case here
 	*/
+	case SYS_munmap:
+		ret = sys_munmap(args[0], args[1]);
+		break;
+	case SYS_mmap:
+		ret = sys_mmap(args[0], args[1], args[2], args[3], args[4]);
+		break;
 	case SYS_getpid:
 		ret = curr_proc()->pid;
 		break;

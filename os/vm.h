@@ -8,6 +8,7 @@ void kvm_init(void);
 void kvmmap(pagetable_t, uint64, uint64, uint64, int);
 int mappages(pagetable_t, uint64, uint64, uint64, int);
 pagetable_t uvmcreate(void);
+pte_t *walk(pagetable_t pagetable, uint64 va, int alloc);
 void uvmfree(pagetable_t, uint64);
 void uvmunmap(pagetable_t, uint64, uint64, int);
 uint64 walkaddr(pagetable_t, uint64);
