@@ -64,7 +64,6 @@ uint64 sys_mmap(uint64 start, uint64_t len, int port, int flag, int fd)
 	/// Check if the start address is page-aligned
 	if(len > 1073741824 || (port & ~0x7) != 0 || (port & 0x7) == 0 || !PGALIGNED(start))
 	{
-		printf("Error: Invalid arguments\n");
 		return -1;
 	}
 	else if ( len == 0 )
@@ -89,7 +88,6 @@ uint64 sys_mmap(uint64 start, uint64_t len, int port, int flag, int fd)
 		}
 		 else if (*pte & PTE_V)
 		{
-			printf("Error: Valid Bit is set\n");
 			return -1;
 		}
 	}
@@ -115,12 +113,10 @@ uint64 sys_mmap(uint64 start, uint64_t len, int port, int flag, int fd)
 		void *pa = kalloc();
 		if (pa == 0)
 		{
-			printf("Error: kalloc failed\n");
 			return -1;
 		}
 		if (mappages(p->pagetable, i, PGSIZE, (uint64)pa, flags) != 0)
 		{
-			printf("Error: mappages failed\n");
 			return -1;
 		}
 	}
@@ -132,7 +128,6 @@ uint64 sys_munmap(uint64 start, uint64 len)
 {
 	if(!PGALIGNED(start))
 	{
-		printf("Error: Invalid arguments\n");
 		return -1;
 	}
 	struct proc *p = curr_proc();
@@ -143,7 +138,6 @@ uint64 sys_munmap(uint64 start, uint64 len)
 		pte_t *pte = walk(p->pagetable, i, 0);
 		if (!(*pte & PTE_V))
 		{
-			printf("Error: Invalid arguments\n");
 			return -1;
 		}
 	}
