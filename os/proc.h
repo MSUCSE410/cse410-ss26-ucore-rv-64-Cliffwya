@@ -7,6 +7,21 @@
 
 #define NPROC (512)
 #define FD_BUFFER_SIZE (16)
+#define MAX_SYSCALL_NUM (500)
+#define BIG_STRIDE (1000000LL)
+
+typedef enum {
+	UnInit,
+	Ready,
+	Running,
+	Exited,
+} TaskStatus;
+
+typedef struct {
+	TaskStatus status;
+	unsigned int syscall_times[MAX_SYSCALL_NUM];
+	int time;
+} TaskInfo;
 
 struct file;
 
@@ -45,6 +60,10 @@ struct proc {
 	struct proc *parent; // Parent process
 	uint64 exit_code;
 	struct file *files[FD_BUFFER_SIZE];
+	TaskInfo *ti;
+	int64_t stride;
+	int64_t pass;
+	int64_t priority;
 };
 
 int cpuid();
@@ -54,6 +73,7 @@ void proc_init();
 void scheduler() __attribute__((noreturn));
 void sched();
 void yield();
+void freeproc(struct proc *);
 int fork();
 int exec(char *);
 int wait(int, int *);

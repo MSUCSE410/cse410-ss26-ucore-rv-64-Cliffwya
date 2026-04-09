@@ -8,6 +8,7 @@
 struct proc pool[NPROC];
 __attribute__((aligned(16))) char kstack[NPROC][PAGE_SIZE];
 __attribute__((aligned(4096))) char trapframe[NPROC][TRAP_PAGE_SIZE];
+TaskInfo task_infos[NPROC];
 
 extern char boot_stack_top[];
 struct proc *current_proc;
@@ -32,6 +33,11 @@ void proc_init()
 		p->state = UNUSED;
 		p->kstack = (uint64)kstack[p - pool];
 		p->trapframe = (struct trapframe *)trapframe[p - pool];
+		p->ti = &task_infos[p - pool];
+		p->ti->status = UnInit;
+		for (int i = 0; i < MAX_SYSCALL_NUM; i++) {
+			p->ti->syscall_times[i] = 0;
+		}
 	}
 	idle.kstack = (uint64)boot_stack_top;
 	idle.pid = IDLE_PID;
@@ -100,20 +106,24 @@ found:
 void scheduler()
 {
 	struct proc *p;
-	for (;;) {
-		/*int has_proc = 0;
-		for (p = pool; p < &pool[NPROC]; p++) {
-			if (p->state == RUNNABLE) {
-				has_proc = 1;
-				tracef("swtich to proc %d", p - pool);
-				p->state = RUNNING;
-				current_proc = p;
-				swtch(&idle.context, &p->context);
+	for(;;)
+	{
+		struct proc *best = NULL;
+		for (p = pool; p < &pool[NPROC]; p++)
+		{
+			if (p->state == RUNNABLE)
+			{
+				if (best == NULL || p->pass < best->pass)
+				{
+					best = p;
+				}
 			}
 		}
-		if(has_proc == 0) {
-			panic("all app are over!\n");
-		}*/
+		if (best == NULL)
+		{
+			panic("No RUNNABLE process, scheduler is idle\n");
+		}
+		
 		p = fetch_task();
 		if (p == NULL) {
 			panic("all app are over!\n");

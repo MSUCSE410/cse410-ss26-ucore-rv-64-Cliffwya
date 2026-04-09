@@ -59,6 +59,125 @@ uint64 sys_gettimeofday(uint64 val, int _tz)
 	return 0;
 }
 
+int sys_task_info(uint64 ti)
+{
+	struct proc *p = curr_proc();
+
+	if (ti == 0)
+	{
+		return -1;
+	}
+
+	uint64 pa = useraddr(p->pagetable, ti);
+	if (pa == 0)
+	{
+		return -1;
+	}
+
+	TaskInfo *pti = (TaskInfo *)pa;
+	pti->status = Running;
+	pti->time = (get_cycle() / (CPU_FREQ / 1000)) - p->ti->time;
+
+	for (int i = 0; i < MAX_SYSCALL_NUM; i++)
+	{
+		pti->syscall_times[i] = p->ti->syscall_times[i];
+	}
+
+	return 0;
+}
+
+uint64 sys_mmap(uint64 start, uint64_t len, int port, int flag, int fd)
+{
+	/// Check if the allocated size is greater than 1GB, or the port is not page-aligned, or the port is 0, or the start address is page-aligned. If any of these conditions are true, return -1. If the length is 0, return 0.
+	/// Check if the port 0x7 is not set
+	/// Check if the port is not page-aligned
+	/// Check if the port is 0
+	/// Check if the start address is page-aligned
+	if(len > 1073741824 || (port & ~0x7) != 0 || (port & 0x7) == 0 || !PGALIGNED(start))
+	{
+		return -1;
+	}
+	else if ( len == 0 )
+	{
+		return 0;
+	}
+
+	/// Variables for our for loop
+	/// Current Process
+	/// Rounded up length
+	/// Starting address as a uint64
+	struct proc *p = curr_proc();
+	uint64_t round = PGROUNDUP(len);
+	uint64_t start_addr = (uint64_t)start;
+
+	for (uint64_t i = start_addr; i < start_addr + round; i += PGSIZE)
+	{
+		pte_t *pte = walk(p->pagetable, i, 0);
+		if (pte == 0)
+		{
+			continue;
+		}
+		 else if (*pte & PTE_V)
+		{
+			return -1;
+		}
+	}
+
+	/// Check flags
+	int flags = PTE_U;
+	if (port & 0x1)
+	{
+		flags |= PTE_R;
+	}
+	if (port & 0x2)
+	{
+		flags |= PTE_W;
+	}
+	if (port & 0x4)
+	{
+		flags |= PTE_X;
+	}
+
+	/// Map the memory
+	for(uint64_t i = start_addr; i < start_addr + round; i += PGSIZE)
+	{
+		void *pa = kalloc();
+		if (pa == 0)
+		{
+			return -1;
+		}
+		if (mappages(p->pagetable, i, PGSIZE, (uint64)pa, flags) != 0)
+		{
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
+uint64 sys_munmap(uint64 start, uint64 len)
+{
+	if(!PGALIGNED(start))
+	{
+		return -1;
+	}
+	struct proc *p = curr_proc();
+	uint64 round = PGROUNDUP(len);
+
+	for(uint64_t i = start; i < (uint64_t)(start + round); i += PGSIZE)
+	{
+		pte_t *pte = walk(p->pagetable, i, 0);
+		if (!(*pte & PTE_V))
+		{
+			return -1;
+		}
+	}
+
+	uvmunmap(p->pagetable, start, round/PGSIZE, 1);
+
+	return 0;
+}
+
 uint64 sys_getpid()
 {
 	return curr_proc()->pid;
@@ -94,13 +213,44 @@ uint64 sys_wait(int pid, uint64 va)
 
 uint64 sys_spawn(uint64 va)
 {
-	// TODO: your job is to complete the sys call
-	return -1;
+	struct proc *p = curr_proc();
+	char name[200];
+	copyinstr(p->pagetable, name, va, 200);
+
+	int id = get_id_by_name(name);
+	if (id < 0)
+	{
+		return -1;
+	}
+
+	struct proc *np = allocproc();
+	if ((np = allocproc()) == 0)
+	{
+		return -1;
+	}
+
+	if (loader(id, np) < 0)
+	{
+		freeproc(np);
+		return -1;
+	}
+
+	np->parent = p;
+	np->state = RUNNABLE;
+	add_task(np);
+	return np->pid;
 }
 
 uint64 sys_set_priority(long long prio){
-    // TODO: your job is to complete the sys call
-    return -1;
+    if(prio < 2) 
+	{
+		return -1;
+	}
+
+	struct proc *p = curr_proc();
+	p->priority = prio;
+	p->pass = BIG_STRIDE / prio;
+	return (uint64)prio;
 }
 
 
@@ -114,6 +264,13 @@ void syscall()
 			   trapframe->a3, trapframe->a4, trapframe->a5 };
 	tracef("syscall %d args = [%x, %x, %x, %x, %x, %x]", id, args[0],
 	       args[1], args[2], args[3], args[4], args[5]);
+	
+	struct proc *p = curr_proc();
+	if (id >= 0 && id < MAX_SYSCALL_NUM) 
+	{
+		p->ti->syscall_times[id]++;
+	}
+
 	switch (id) {
 	case SYS_write:
 		ret = sys_write(args[0], args[1], args[2]);
@@ -129,6 +286,15 @@ void syscall()
 		break;
 	case SYS_gettimeofday:
 		ret = sys_gettimeofday(args[0], args[1]);
+		break;
+	case SYS_task_info:
+		ret = sys_task_info(args[0]);
+		break;
+	case SYS_munmap:
+		ret = sys_munmap(args[0], args[1]);
+		break;
+	case SYS_mmap:
+		ret = sys_mmap(args[0], args[1], args[2], args[3], args[4]);
 		break;
 	case SYS_getpid:
 		ret = sys_getpid();
@@ -147,6 +313,9 @@ void syscall()
 		break;
 	case SYS_spawn:
 		ret = sys_spawn(args[0]);
+		break;
+	case SYS_setpriority:
+		ret = sys_set_priority(args[0]);
 		break;
 	default:
 		ret = -1;
