@@ -217,24 +217,29 @@ uint64 sys_spawn(uint64 va)
 	char name[200];
 	copyinstr(p->pagetable, name, va, 200);
 
+	/// Debug check for the invalid filename
 	int id = get_id_by_name(name);
 	if (id < 0)
 	{
 		return -1;
 	}
 
+	/// Debug check for enough resources
 	struct proc *np = allocproc();
 	if ((np = allocproc()) == 0)
 	{
 		return -1;
 	}
 
+	/// Load the process into mem
+	/// If it fails free it and return 0
 	if (loader(id, np) < 0)
 	{
 		freeproc(np);
 		return -1;
 	}
 
+	/// Set the variables for the new process and add it to the queue
 	np->parent = p;
 	np->state = RUNNABLE;
 	add_task(np);
@@ -242,6 +247,7 @@ uint64 sys_spawn(uint64 va)
 }
 
 uint64 sys_set_priority(long long prio){
+	/// Range we need for the priority
     if(prio < 2) 
 	{
 		return -1;
@@ -249,6 +255,7 @@ uint64 sys_set_priority(long long prio){
 
 	struct proc *p = curr_proc();
 	p->priority = prio;
+	/// Default value (very large) and divide it by priority to get a good number to use
 	p->pass = BIG_STRIDE / prio;
 	return (uint64)prio;
 }

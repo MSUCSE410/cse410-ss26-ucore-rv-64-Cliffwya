@@ -105,29 +105,33 @@ found:
 //    via swtch back to the scheduler.
 void scheduler()
 {
+	/// Loop through all processes
+	/// Check for runnable processes
 	struct proc *p;
 	for(;;)
 	{
-		struct proc *best = NULL;
+		struct proc *current_proc = NULL;
 		for (p = pool; p < &pool[NPROC]; p++)
 		{
 			if (p->state == RUNNABLE)
 			{
-				if (best == NULL || p->pass < best->pass)
+				if (current_proc == NULL || p->pass < current_proc->pass)
 				{
-					best = p;
+					current_proc = p;
 				}
 			}
 		}
-		if (best == NULL)
+		if (current_proc == NULL)
 		{
-			panic("No RUNNABLE process, scheduler is idle\n");
+			panic("all apps are over!\n");
 		}
 		
+		/// Pop queue and grab best process to run
 		p = fetch_task();
 		if (p == NULL) {
 			panic("all app are over!\n");
 		}
+		/// Run process
 		tracef("swtich to proc %d", p - pool);
 		p->state = RUNNING;
 		current_proc = p;
